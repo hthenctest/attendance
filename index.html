@@ -2954,11 +2954,30 @@ SHEETS.qr = () => {
 ACT.print = () => { try { window.print(); } catch (e) { /* not allowed here */ } };
 
 /* ---------- Rendering, events and start-up ---------- */
+/* The first screen when the app can't load its settings: says which part of the setup to fix. */
 function setupNeeded(e) {
-  const noApi = e && e.code === 'NO_API';
-  return `<main class="wrap main stack"><div class="hero"><span class="mono">!</span><h1>${noApi ? 'Connect this app to its Google Sheet' : T('err_NETWORK')}</h1></div>
-    ${noApi ? `<div class="note">${icon('info', 20)}<span>Open index.html in a text editor, find <b>API_URL</b> near the bottom, paste the web app URL from Apps Script (Deploy, then Manage deployments), save, and upload the file again.</span></div>`
-      : `<button class="btn block" data-a="retry">${icon('refresh', 20)} ${T('tryAgain')}</button>`}</main>`;
+  const code = e && e.code;
+  const url = String(CONFIG.API_URL || '');
+  const shown = url.length > 64 ? url.slice(0, 44) + '…' + url.slice(-14) : url;
+  let title, lead = '', steps;
+  if (code === 'NO_API') {
+    title = 'Connect this app to its Google Sheet';
+    steps = ['Open index.html in a text editor and search for <b>API_URL</b>.', 'Paste the web app URL from Apps Script (Deploy, then Manage deployments; it ends in /exec) between the quotes.', 'Save and upload the file again.'];
+  } else if (code === 'NOT_SET_UP') {
+    title = 'One step left: run setup';
+    lead = 'The web app answered, but its System sheet is not set up yet.';
+    steps = ['In the Apps Script editor, pick <b>setup</b> in the toolbar and click Run. The staff PINs appear in the Execution log.', 'Then tap Try again.'];
+  } else if (code === 'NETWORK') {
+    title = T('err_NETWORK');
+    lead = 'If the connection is fine, the web app link needs a look:';
+    steps = [`This app calls <code style="overflow-wrap:anywhere">${esc(shown)}</code>. It should end in /exec.`, 'In Apps Script, Deploy, then Manage deployments, must show <b>Who has access: Anyone</b>.', 'After pasting or changing the code, edit the deployment and pick Version: New version. Opening the link in a private window should show "ok": true.'];
+  } else {
+    title = 'The web app answered with an error';
+    steps = [esc((e && e.message) || 'Unknown error')];
+  }
+  return `<main class="wrap main stack"><div class="hero"><span class="mono">!</span><h1>${title}</h1></div>${lead ? `<p class="muted">${lead}</p>` : ''}
+    <ol class="note" style="display:grid;gap:8px;padding-left:34px;margin:0">${steps.map(x => `<li>${x}</li>`).join('')}</ol>
+    ${code === 'NO_API' ? '' : `<button class="btn block" data-a="retry">${icon('refresh', 20)} ${T('tryAgain')}</button>`}</main>`;
 }
 ACT.retry = () => { $('#app').innerHTML = '<div class="splash"><div class="spin"></div></div>'; loadConfig(); };
 ACT['close-sheet'] = () => closeSheet();
